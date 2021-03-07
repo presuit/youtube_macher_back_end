@@ -1,14 +1,73 @@
-import { All, UseGuards } from '@nestjs/common';
+import { UseGuards } from '@nestjs/common';
 import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { AppAuthGuard } from 'src/common/app.guard';
 import { AllowedPermission } from 'src/common/auth.roles';
 import { AuthUser } from 'src/common/auth.user';
 import { User } from 'src/user/entities/user.entity';
-import { CreateRoomInput, CreateRoomOutput } from './dtos/createRoom.dto';
-import { DeleteRoomInput, DeleteRoomOutput } from './dtos/deleteRoom.dto';
-import { FindRoomByIdInput, FindRoomByIdOutput } from './dtos/findRoomById.dto';
-import { UpdateRoomInput, UpdateRoomOutput } from './dtos/updateRoom.dto';
-import { RoomService } from './room.service';
+import { CreateMsgInput, CreateMsgOutput } from './dtos/msg/createMsg.dto';
+import {
+  CreatePlaylistInput,
+  CreatePlaylistOutput,
+} from './dtos/playlist/createPlaylist.dto';
+import {
+  CreateOrGetPlaylistItemInput,
+  CreateOrGetPlaylistItemOutput,
+} from './dtos/playlistItem/createPlaylistItem.dto';
+import {
+  GetPlaylistItemByIdInput,
+  GetPlaylistItemByIdOutput,
+} from './dtos/playlistItem/getPlaylistItemById.dto';
+import { CreateRoomInput, CreateRoomOutput } from './dtos/room/createRoom.dto';
+import { DeleteRoomInput, DeleteRoomOutput } from './dtos/room/deleteRoom.dto';
+import {
+  FindRoomByIdInput,
+  FindRoomByIdOutput,
+} from './dtos/room/findRoomById.dto';
+import { JoinRoomInput, JoinRoomOutput } from './dtos/room/joinRoom.dto';
+import { UpdateRoomInput, UpdateRoomOutput } from './dtos/room/updateRoom.dto';
+import {
+  PlaylistItemService,
+  PlaylistService,
+  RoomService,
+} from './room.service';
+
+@UseGuards(AppAuthGuard)
+@Resolver()
+export class PlaylistResolver {
+  constructor(private readonly playlistService: PlaylistService) {}
+
+  @AllowedPermission('LogIn')
+  @Mutation((returns) => CreatePlaylistOutput)
+  createPlaylist(
+    @AuthUser() user: User,
+    @Args('input') input: CreatePlaylistInput,
+  ): Promise<CreatePlaylistOutput> {
+    return this.playlistService.createPlaylist(user, input);
+  }
+}
+
+@UseGuards(AppAuthGuard)
+@Resolver()
+export class PlaylistItemResolver {
+  constructor(private readonly playlistItemService: PlaylistItemService) {}
+
+  @AllowedPermission('LogIn')
+  @Mutation((returns) => CreateOrGetPlaylistItemOutput)
+  createOrGetPlaylistItem(
+    @AuthUser() user: User,
+    @Args('input') input: CreateOrGetPlaylistItemInput,
+  ): Promise<CreateOrGetPlaylistItemOutput> {
+    return this.playlistItemService.createOrGetPlaylistItem(user, input);
+  }
+
+  @AllowedPermission('LogIn')
+  @Query((returns) => GetPlaylistItemByIdOutput)
+  getPlaylistItemById(
+    @Args('input') input: GetPlaylistItemByIdInput,
+  ): Promise<GetPlaylistItemByIdOutput> {
+    return this.playlistItemService.getPlaylistItemById(input);
+  }
+}
 
 @UseGuards(AppAuthGuard)
 @Resolver()
@@ -47,5 +106,22 @@ export class RoomResolver {
     @Args('input') input: FindRoomByIdInput,
   ): Promise<FindRoomByIdOutput> {
     return this.roomService.findRoomById(input);
+  }
+
+  @AllowedPermission('LogIn')
+  @Mutation((returns) => JoinRoomOutput)
+  joinRoom(
+    @AuthUser() user: User,
+    @Args('input') input: JoinRoomInput,
+  ): Promise<JoinRoomOutput> {
+    return this.roomService.joinRoom(user, input);
+  }
+
+  @Mutation((returns) => CreateMsgOutput)
+  createMsg(
+    @AuthUser() user: User,
+    @Args('input') input: CreateMsgInput,
+  ): Promise<CreateMsgOutput> {
+    return this.roomService.createMsg(user, input);
   }
 }

@@ -20,11 +20,11 @@ export class UserService {
         return { ok: false, error: 'Google Login Failed' };
       }
       let user = await this.users.findOne({ googleId: req.user['googleId'] });
-      if (user.accessToken !== req.user['accessToken']) {
-        user.accessToken = req.user['accessToken'];
-      }
       if (!user) {
         user = this.users.create({ ...req.user });
+      }
+      if (user.accessToken !== req.user['accessToken']) {
+        user.accessToken = req.user['accessToken'];
       }
       await this.users.save(user);
       const authToken = this.jwtService.generateJwtToken({
@@ -32,6 +32,7 @@ export class UserService {
       });
       return { ok: true, authToken };
     } catch (error) {
+      console.log(error);
       return { ok: false, error };
     }
   }

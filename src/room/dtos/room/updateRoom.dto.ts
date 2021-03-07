@@ -7,7 +7,7 @@ import {
   PickType,
 } from '@nestjs/graphql';
 import { CommonOutput } from 'src/common/dtos/commonOutput.dto';
-import { Room } from '../entities/room.entity';
+import { Room } from 'src/room/entities/room.entity';
 
 @InputType()
 export class UpdateRoomInput extends PartialType(PickType(Room, ['name'])) {
@@ -16,6 +16,9 @@ export class UpdateRoomInput extends PartialType(PickType(Room, ['name'])) {
 
   @Field((type) => [Int], { nullable: true })
   banUserIds?: number[];
+
+  @Field((type) => [Int], { nullable: true })
+  unbanUserIds?: number[];
 }
 
 @ObjectType()

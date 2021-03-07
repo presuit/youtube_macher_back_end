@@ -17,6 +17,7 @@ export class AppAuthGuard implements CanActivate {
       'permission',
       context.getHandler(),
     );
+
     if (permission === 'Allowed') {
       return true;
     }

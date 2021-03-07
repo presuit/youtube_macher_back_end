@@ -1,6 +1,6 @@
 import { Field, InputType, Int, ObjectType } from '@nestjs/graphql';
 import { Common } from 'src/common/entities/common.entity';
-import { Column, Entity, ManyToOne } from 'typeorm';
+import { Column, Entity, ManyToOne, RelationId } from 'typeorm';
 import { Room } from './room.entity';
 
 @Entity()
@@ -19,4 +19,7 @@ export class Msg extends Common {
   @ManyToOne((type) => Room, (room) => room.msgs)
   @Field((type) => Room)
   room: Room;
+
+  @RelationId((msg: Msg) => msg.room)
+  roomId: number;
 }

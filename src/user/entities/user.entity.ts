@@ -6,7 +6,7 @@ import {
   registerEnumType,
 } from '@nestjs/graphql';
 import { Common } from 'src/common/entities/common.entity';
-import { Playlist } from 'src/playlist/entities/playlist.entity';
+import { Playlist } from 'src/room/entities/playlist.entity';
 import { Room } from 'src/room/entities/room.entity';
 import { Column, Entity, ManyToMany, OneToMany, RelationId } from 'typeorm';
 

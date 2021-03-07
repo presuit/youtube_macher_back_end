@@ -1,6 +1,6 @@
 import { Field, InputType, Int, ObjectType, PickType } from '@nestjs/graphql';
 import { CommonOutput } from 'src/common/dtos/commonOutput.dto';
-import { Playlist } from '../entities/playlist.entity';
+import { Playlist } from '../../entities/playlist.entity';
 
 @InputType()
 export class CreatePlaylistInput extends PickType(Playlist, ['title']) {

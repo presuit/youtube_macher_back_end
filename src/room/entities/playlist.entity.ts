@@ -17,6 +17,10 @@ import { PlaylistItem } from './playlistItem.entity';
 export class Playlist extends Common {
   @Column()
   @Field((type) => String)
+  playlistId: string;
+
+  @Column()
+  @Field((type) => String)
   title: string;
 
   @Column({ nullable: true })

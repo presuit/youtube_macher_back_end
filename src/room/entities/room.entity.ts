@@ -6,7 +6,6 @@ import {
   registerEnumType,
 } from '@nestjs/graphql';
 import { Common } from 'src/common/entities/common.entity';
-import { PlaylistItem } from 'src/playlist/entities/playlistItem.entity';
 import { User } from 'src/user/entities/user.entity';
 import {
   Column,
@@ -18,11 +17,14 @@ import {
   RelationId,
 } from 'typeorm';
 import { Msg } from './msg.entity';
+import { PlaylistItem } from './playlistItem.entity';
 
 export enum RoomRelations {
   host = 'host',
   participants = 'participants',
   msgs = 'msgs',
+  playlistItems = 'playlistItems',
+  bannedUsers = 'bannedUsers',
 }
 
 registerEnumType(RoomRelations, { name: 'RoomRelations' });
@@ -65,4 +67,12 @@ export class Room extends Common {
 
   @RelationId((room: Room) => room.playlistItems)
   playlistItemIds: number[];
+
+  @ManyToMany((type) => User, { nullable: true })
+  @JoinTable()
+  @Field((type) => User, { nullable: true })
+  bannedUsers?: User[];
+
+  @RelationId((room: Room) => room.bannedUsers)
+  bannedUserIds: number[];
 }

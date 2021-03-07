@@ -1,16 +1,15 @@
 import { Module } from '@nestjs/common';
 import { GraphQLModule } from '@nestjs/graphql';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { UserModule } from './user/user.module';
 import { CommonModule } from './common/common.module';
 import { JwtModule } from './jwt/jwt.module';
-import { User } from './user/entities/user.entity';
-import { RoomModule } from './room/room.module';
-import { Room } from './room/entities/room.entity';
 import { Msg } from './room/entities/msg.entity';
-import { PlaylistModule } from './playlist/playlist.module';
-import { Playlist } from './playlist/entities/playlist.entity';
-import { PlaylistItem } from './playlist/entities/playlistItem.entity';
+import { Playlist } from './room/entities/playlist.entity';
+import { PlaylistItem } from './room/entities/playlistItem.entity';
+import { Room } from './room/entities/room.entity';
+import { RoomModule } from './room/room.module';
+import { User } from './user/entities/user.entity';
+import { UserModule } from './user/user.module';
 
 @Module({
   imports: [
@@ -32,7 +31,6 @@ import { PlaylistItem } from './playlist/entities/playlistItem.entity';
     CommonModule,
     JwtModule.forRoot({ jwtSecret: 'dgoJjbVEaC1ZXx1du2fORoRsCeIL7Qoq' }),
     RoomModule,
-    PlaylistModule,
   ],
   controllers: [],
   providers: [],
