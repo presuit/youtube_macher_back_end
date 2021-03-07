@@ -31,8 +31,108 @@ import { PlaylistItem } from './entities/playlistItem.entity';
 import { Room, RoomRelations } from './entities/room.entity';
 import {
   GET_YOUTUBE_VIDEO_URL,
+  INSERT_PLAY_LIST_ITEM_URL,
   INSERT_PLAY_LIST_URL,
 } from './playlist.constant';
+
+@Injectable()
+export class PlaylistItemService {
+  constructor(
+    @InjectRepository(PlaylistItem)
+    private readonly playlistItems: Repository<PlaylistItem>,
+  ) {}
+
+  async parseLink(
+    link: string,
+  ): Promise<{
+    ok: boolean;
+    error?: string;
+    videoId?: string;
+  }> {
+    try {
+      const validateYoutubeUrl_1 = link.includes(
+        'https://www.youtube.com/watch',
+      );
+      const validateYoutubeUrl_2 = link.includes('https://youtu.be');
+
+      let videoId: string;
+
+      if (validateYoutubeUrl_1) {
+        videoId = link.split('&')[0].split('v=')[1];
+      } else if (validateYoutubeUrl_2) {
+        const tokens = link.split('/');
+        videoId = tokens[tokens.length - 1];
+      } else {
+        return { ok: false, error: 'Your link does not have youtube address' };
+      }
+
+      return { ok: true, videoId };
+    } catch (error) {
+      return { ok: false, error };
+    }
+  }
+
+  async createOrGetPlaylistItem(
+    user: User,
+    { link }: CreateOrGetPlaylistItemInput,
+  ): Promise<CreateOrGetPlaylistItemOutput> {
+    try {
+      const { ok, error, videoId } = await this.parseLink(link);
+
+      if (!ok) {
+        return { ok, error };
+      }
+
+      let playlistItem = await this.playlistItems.findOne({ videoId });
+      if (playlistItem) {
+        // if there's already playlistItem exists, then return it
+        return { ok: true, playlistItemId: playlistItem.id };
+      }
+
+      // or create new one
+
+      const response = await axios.get(
+        `${GET_YOUTUBE_VIDEO_URL}/?part=snippet&id=${videoId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${user.accessToken}`,
+          },
+        },
+      );
+
+      const videoSnippet = response.data.items[0].snippet;
+      const title = videoSnippet.title;
+      const description = videoSnippet.description;
+      const thumbnailImg = videoSnippet.thumbnails.standard.url;
+
+      playlistItem = this.playlistItems.create({
+        description,
+        originalLink: link,
+        thumbnailImg,
+        title,
+        videoId,
+        kind: 'youtube#video',
+      });
+
+      await this.playlistItems.save(playlistItem);
+
+      return { ok: true, playlistItemId: playlistItem.id };
+    } catch (error) {
+      return { ok: false, error };
+    }
+  }
+
+  async getPlaylistItemById({
+    id,
+  }: GetPlaylistItemByIdInput): Promise<GetPlaylistItemByIdOutput> {
+    try {
+      const playlistItem = await this.playlistItems.findOneOrFail(id);
+      return { ok: true, playlistItem };
+    } catch (error) {
+      return { ok: false, error };
+    }
+  }
+}
 
 @Injectable()
 export class RoomService {
@@ -40,6 +140,7 @@ export class RoomService {
     @InjectRepository(Room) private readonly rooms: Repository<Room>,
     @InjectRepository(Msg) private readonly msgs: Repository<Msg>,
     private readonly userService: UserService,
+    private readonly playlistItemService: PlaylistItemService,
   ) {}
 
   async createRoom(
@@ -200,7 +301,9 @@ export class RoomService {
     { roomId, text }: CreateMsgInput,
   ): Promise<CreateMsgOutput> {
     try {
-      const room = await this.rooms.findOne(roomId);
+      const room = await this.rooms.findOne(roomId, {
+        relations: ['playlistItems'],
+      });
       if (!room) {
         return { ok: false, error: 'Room does not exists' };
       }
@@ -208,6 +311,26 @@ export class RoomService {
       // tooo:
       // parse text to validate if there's any links,
       // if there's links, then parse it and getOrCreate PlaylistItem and attach to room
+      const {
+        ok,
+        playlistItemId,
+      } = await this.playlistItemService.createOrGetPlaylistItem(user, {
+        link: text,
+      });
+
+      if (ok && playlistItemId) {
+        const {
+          playlistItem,
+          ok: getPlaylistItemOk,
+        } = await this.playlistItemService.getPlaylistItemById({
+          id: playlistItemId,
+        });
+
+        if (getPlaylistItemOk && playlistItem) {
+          room.playlistItems = [...room.playlistItems, playlistItem];
+          await this.rooms.save(room);
+        }
+      }
 
       const newMsg = this.msgs.create({ fromId: user.id, room, text });
 
@@ -216,106 +339,6 @@ export class RoomService {
 
       await this.msgs.save(newMsg);
       return { ok: true, msgId: newMsg.id };
-    } catch (error) {
-      return { ok: false, error };
-    }
-  }
-}
-
-@Injectable()
-export class PlaylistItemService {
-  constructor(
-    @InjectRepository(PlaylistItem)
-    private readonly playlistItems: Repository<PlaylistItem>,
-  ) {}
-
-  async parseLink(
-    link: string,
-    user: User,
-  ): Promise<{
-    ok: boolean;
-    error?: string;
-    videoId?: string;
-  }> {
-    try {
-      const validateYoutubeUrl_1 = link.includes(
-        'https://www.youtube.com/watch',
-      );
-      const validateYoutubeUrl_2 = link.includes('https://youtu.be');
-
-      let videoId: string;
-
-      if (validateYoutubeUrl_1) {
-        videoId = link.split('&')[0].split('v=')[1];
-      } else if (validateYoutubeUrl_2) {
-        const tokens = link.split('/');
-        videoId = tokens[tokens.length - 1];
-      } else {
-        return { ok: false, error: 'Your link does not have youtube address' };
-      }
-
-      return { ok: true, videoId };
-    } catch (error) {
-      return { ok: false, error };
-    }
-  }
-
-  async createOrGetPlaylistItem(
-    user: User,
-    { link }: CreateOrGetPlaylistItemInput,
-  ): Promise<CreateOrGetPlaylistItemOutput> {
-    try {
-      const { ok, error, videoId } = await this.parseLink(link, user);
-
-      if (!ok) {
-        return { ok, error };
-      }
-
-      let playlistItem = await this.playlistItems.findOne({ videoId });
-      if (playlistItem) {
-        // if there's already playlistItem exists, then return it
-        return { ok: true, playlistItemId: playlistItem.id };
-      }
-
-      // or create new one
-
-      const response = await axios.get(
-        `${GET_YOUTUBE_VIDEO_URL}/?part=snippet&id=${videoId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${user.accessToken}`,
-          },
-        },
-      );
-
-      const videoSnippet = response.data.items[0].snippet;
-      const title = videoSnippet.title;
-      const description = videoSnippet.description;
-      const thumbnailImg = videoSnippet.thumbnails.standard.url;
-
-      playlistItem = this.playlistItems.create({
-        description,
-        originalLink: link,
-        thumbnailImg,
-        title,
-        videoId,
-        kind: 'youtube#video',
-      });
-
-      await this.playlistItems.save(playlistItem);
-
-      return { ok: true, playlistItemId: playlistItem.id };
-    } catch (error) {
-      return { ok: false, error };
-    }
-  }
-
-  async getPlaylistItemById({
-    id,
-  }: GetPlaylistItemByIdInput): Promise<GetPlaylistItemByIdOutput> {
-    try {
-      const playlistItem = await this.playlistItems.findOneOrFail(id);
-      return { ok: true, playlistItem };
     } catch (error) {
       return { ok: false, error };
     }
@@ -356,7 +379,7 @@ export class PlaylistService {
       if (playlist) {
         return {
           ok: false,
-          error: "Already  exists playlist's title, rename it",
+          error: "Already exists playlist's title, rename it",
         };
       }
 
@@ -400,17 +423,58 @@ export class PlaylistService {
         },
       };
 
-      const response = await axios.post(INSERT_PLAY_LIST_URL, data, {
-        headers: {
-          Authorization: `Bearer ${user.accessToken}`,
+      // create playlist
+      const response = await axios.post(
+        `${INSERT_PLAY_LIST_URL}/?part=snippet`,
+        data,
+        {
+          headers: {
+            Authorization: `Bearer ${user.accessToken}`,
+          },
         },
-      });
+      );
 
       console.log(response.data);
+      const playlistId = response.data.id;
 
-      // await this.playlists.save(playlist);
+      if (!playlistId) {
+        return {
+          ok: false,
+          error: 'Youtube api went wrong on createPlaylist check it out',
+        };
+      }
+
+      playlist.playlistId = playlistId;
+
+      // attach playlistItems to playlist that just created
+      for (const item of playlist.playlistItems) {
+        const data = {
+          snippet: {
+            playlistId: playlist.playlistId,
+            resourceId: {
+              kind: 'youtube#video',
+              videoId: item.videoId,
+            },
+          },
+        };
+        const response = await axios.post(
+          `${INSERT_PLAY_LIST_ITEM_URL}/?part=snippet`,
+          data,
+          {
+            headers: {
+              Authorization: `Bearer ${user.accessToken}`,
+            },
+          },
+        );
+        console.log(response.status);
+        // todo:
+        // when some data went wrong, then show some error
+      }
+
+      await this.playlists.save(playlist);
       return { ok: true, playlistId: playlist.id };
     } catch (error) {
+      console.log(error);
       return { ok: false, error };
     }
   }
