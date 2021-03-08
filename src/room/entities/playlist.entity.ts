@@ -1,4 +1,9 @@
-import { Field, InputType, ObjectType } from '@nestjs/graphql';
+import {
+  Field,
+  InputType,
+  ObjectType,
+  registerEnumType,
+} from '@nestjs/graphql';
 import { Common } from 'src/common/entities/common.entity';
 import { User } from 'src/user/entities/user.entity';
 import {
@@ -10,6 +15,13 @@ import {
   RelationId,
 } from 'typeorm';
 import { PlaylistItem } from './playlistItem.entity';
+
+export enum PlaylistRelations {
+  playlistItems = 'playlistItems',
+  owner = 'owner',
+}
+
+registerEnumType(PlaylistRelations, { name: 'PlaylistRelations' });
 
 @Entity()
 @InputType({ isAbstract: true })

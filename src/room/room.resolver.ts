@@ -10,6 +10,14 @@ import {
   CreatePlaylistOutput,
 } from './dtos/playlist/createPlaylist.dto';
 import {
+  GetPlaylistByIdInput,
+  GetPlaylistByIdOutput,
+} from './dtos/playlist/getPlaylistById.dto';
+import {
+  UpdatePlaylistInput,
+  UpdatePlaylistOutput,
+} from './dtos/playlist/updatePlaylist.dto';
+import {
   CreateOrGetPlaylistItemInput,
   CreateOrGetPlaylistItemOutput,
 } from './dtos/playlistItem/createPlaylistItem.dto';
@@ -44,6 +52,24 @@ export class PlaylistResolver {
   ): Promise<CreatePlaylistOutput> {
     return this.playlistService.createPlaylist(user, input);
   }
+
+  @AllowedPermission('LogIn')
+  @Query((returns) => GetPlaylistByIdOutput)
+  getPlaylistById(
+    @AuthUser() user: User,
+    @Args('input') input: GetPlaylistByIdInput,
+  ): Promise<GetPlaylistByIdOutput> {
+    return this.playlistService.getPlaylistById(user, input);
+  }
+
+  @AllowedPermission('LogIn')
+  @Mutation((returns) => UpdatePlaylistOutput)
+  updatePlaylistOutput(
+    @AuthUser() user: User,
+    @Args('input') input: UpdatePlaylistInput,
+  ): Promise<UpdatePlaylistOutput> {
+    return this.playlistService.updatePlaylist(user, input);
+  }
 }
 
 @UseGuards(AppAuthGuard)
@@ -63,9 +89,10 @@ export class PlaylistItemResolver {
   @AllowedPermission('LogIn')
   @Query((returns) => GetPlaylistItemByIdOutput)
   getPlaylistItemById(
+    @AuthUser() user: User,
     @Args('input') input: GetPlaylistItemByIdInput,
   ): Promise<GetPlaylistItemByIdOutput> {
-    return this.playlistItemService.getPlaylistItemById(input);
+    return this.playlistItemService.getPlaylistItemById(user, input);
   }
 }
 

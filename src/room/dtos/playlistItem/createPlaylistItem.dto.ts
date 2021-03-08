@@ -1,5 +1,6 @@
 import { Field, InputType, Int, ObjectType } from '@nestjs/graphql';
 import { CommonOutput } from 'src/common/dtos/commonOutput.dto';
+import { PlaylistItem } from 'src/room/entities/playlistItem.entity';
 
 @InputType()
 export class CreateOrGetPlaylistItemInput {
@@ -9,6 +10,6 @@ export class CreateOrGetPlaylistItemInput {
 
 @ObjectType()
 export class CreateOrGetPlaylistItemOutput extends CommonOutput {
-  @Field((type) => Int, { nullable: true })
-  playlistItemId?: number;
+  @Field((type) => PlaylistItem, { nullable: true })
+  playlistItem?: PlaylistItem;
 }
