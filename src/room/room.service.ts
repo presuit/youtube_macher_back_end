@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import axios from 'axios';
 import { CommonOutput } from 'src/common/dtos/commonOutput.dto';
+import { Common } from 'src/common/entities/common.entity';
 import { User } from 'src/user/entities/user.entity';
 import { UserService } from 'src/user/user.service';
 import { Repository } from 'typeorm';
@@ -70,7 +71,7 @@ export class PlaylistItemService {
         const videoSnippet = response.data.items[0].snippet;
         const title = videoSnippet.title;
         const description = videoSnippet.description;
-        const thumbnailImg = videoSnippet.thumbnails.standard.url;
+        const thumbnailImg = videoSnippet.thumbnails.default.url;
         let updated = false;
 
         if (kind !== playlistItem.kind) {
@@ -430,6 +431,49 @@ export class PlaylistService {
     private readonly roomService: RoomService,
   ) {}
 
+  async synchronizePlaylistAndYoutubePlaylist(
+    user: User,
+    playlist: Playlist,
+    videoIdContainer: string[],
+  ): Promise<CommonOutput> {
+    // youtube와 playlist.playlistItems를 서로 동기화 시킴
+    let i: number;
+    for (i = 0; i < videoIdContainer.length; i++) {
+      const target = videoIdContainer[i];
+      const index = playlist.playlistItems.findIndex(
+        (elem) => elem.videoId === target,
+      );
+      if (index > -1) {
+        if (index !== i) {
+          const temp = playlist.playlistItems[i];
+          playlist.playlistItems[i] = playlist.playlistItems[index];
+          playlist.playlistItems[index] = temp;
+        }
+      } else {
+        const link = `https://youtu.be/${target}`;
+        const {
+          ok,
+          error,
+          playlistItem,
+        } = await this.playlistItemService.createOrGetPlaylistItem(user, {
+          link,
+        });
+        if (!ok) {
+          return { ok: false, error };
+        }
+        const temp = playlist.playlistItems[i];
+        playlist.playlistItems[i] = playlistItem;
+        playlist.playlistItems.push(temp);
+      }
+    }
+
+    playlist.playlistItems = playlist.playlistItems.slice(0, i);
+
+    await this.playlists.save(playlist);
+
+    return { ok: true };
+  }
+
   async fetchPlaylistFromYoutube(
     user: User,
     playlist: Playlist,
@@ -471,33 +515,13 @@ export class PlaylistService {
           playlistItemsResponse.status === 200 &&
           playlistItemsResponse.data.items.length !== 0
         ) {
-          playlist.playlistItems = [];
+          const videoIdFromYoutube: string[] = [];
           while (true) {
             for (const item of playlistItemsResponse.data.items) {
               const playlistItemSnippet = item.snippet;
               const videoId = playlistItemSnippet.resourceId.videoId;
               if (videoId) {
-                const link = `https://youtu.be/${videoId}`;
-                const {
-                  error,
-                  ok,
-                  playlistItem,
-                } = await this.playlistItemService.createOrGetPlaylistItem(
-                  user,
-                  {
-                    link,
-                  },
-                );
-                if (!ok) {
-                  return { ok, error };
-                }
-
-                playlist.playlistItems = [
-                  ...playlist.playlistItems,
-                  playlistItem,
-                ];
-
-                updated = true;
+                videoIdFromYoutube.push(videoId);
               }
             }
             if (playlistItemsResponse.data.nextPageToken) {
@@ -509,6 +533,18 @@ export class PlaylistService {
             } else {
               break;
             }
+          }
+
+          const {
+            ok,
+            error,
+          } = await this.synchronizePlaylistAndYoutubePlaylist(
+            user,
+            playlist,
+            videoIdFromYoutube,
+          );
+          if (!ok) {
+            return { ok, error };
           }
         }
 
