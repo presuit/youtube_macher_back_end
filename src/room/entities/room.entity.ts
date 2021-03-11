@@ -8,6 +8,8 @@ import {
 import { Common } from 'src/common/entities/common.entity';
 import { User } from 'src/user/entities/user.entity';
 import {
+  BeforeInsert,
+  BeforeUpdate,
   Column,
   Entity,
   JoinTable,
@@ -70,9 +72,13 @@ export class Room extends Common {
 
   @ManyToMany((type) => User, { nullable: true })
   @JoinTable()
-  @Field((type) => User, { nullable: true })
+  @Field((type) => [User], { nullable: true })
   bannedUsers?: User[];
 
   @RelationId((room: Room) => room.bannedUsers)
   bannedUserIds: number[];
+
+  @Column()
+  @Field((type) => String)
+  inviteCode: string;
 }

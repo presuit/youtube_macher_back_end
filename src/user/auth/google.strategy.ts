@@ -10,7 +10,13 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         '300412213960-s1c4bst77a3i9d31mk8e2s37is65q3h0.apps.googleusercontent.com',
       clientSecret: 'zs2ytD8U5Q0WvTwL3QVQXwFt',
       callbackURL: 'http://localhost:3000/user/auth/callback',
-      scope: ['email', 'profile', 'https://www.googleapis.com/auth/youtube'],
+      scope: [
+        'email',
+        'profile',
+        'https://www.googleapis.com/auth/youtube',
+        'https://www.googleapis.com/auth/youtube.force-ssl',
+        'https://www.googleapis.com/auth/youtubepartner',
+      ],
     });
   }
 

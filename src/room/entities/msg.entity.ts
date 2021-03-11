@@ -16,7 +16,7 @@ export class Msg extends Common {
   fromId: number;
 
   // relations
-  @ManyToOne((type) => Room, (room) => room.msgs)
+  @ManyToOne((type) => Room, (room) => room.msgs, { onDelete: 'CASCADE' })
   @Field((type) => Room)
   room: Room;
 
