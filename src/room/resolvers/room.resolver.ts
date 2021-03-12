@@ -1,30 +1,12 @@
-import { UseGuards } from '@nestjs/common';
-import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
+import { Inject, UseGuards } from '@nestjs/common';
+import { Args, Mutation, Query, Resolver, Subscription } from '@nestjs/graphql';
+import { PubSub } from 'graphql-subscriptions';
 import { AppAuthGuard } from 'src/common/app.guard';
 import { AllowedPermission } from 'src/common/auth.roles';
 import { AuthUser } from 'src/common/auth.user';
+import { PUB_SUB } from 'src/common/common.constants';
 import { User } from 'src/user/entities/user.entity';
 import { CreateMsgInput, CreateMsgOutput } from '../dtos/msg/createMsg.dto';
-import {
-  CreatePlaylistInput,
-  CreatePlaylistOutput,
-} from '../dtos/playlist/createPlaylist.dto';
-import {
-  GetPlaylistByIdInput,
-  GetPlaylistByIdOutput,
-} from '../dtos/playlist/getPlaylistById.dto';
-import {
-  UpdatePlaylistInput,
-  UpdatePlaylistOutput,
-} from '../dtos/playlist/updatePlaylist.dto';
-import {
-  CreateOrGetPlaylistItemInput,
-  CreateOrGetPlaylistItemOutput,
-} from '../dtos/playlistItem/createPlaylistItem.dto';
-import {
-  GetPlaylistItemByIdInput,
-  GetPlaylistItemByIdOutput,
-} from '../dtos/playlistItem/getPlaylistItemById.dto';
 import {
   CreateInviteCodeInput,
   CreateInviteCodeOutput,
@@ -37,13 +19,17 @@ import {
 } from '../dtos/room/findRoomById.dto';
 import { JoinRoomInput, JoinRoomOutput } from '../dtos/room/joinRoom.dto';
 import { UpdateRoomInput, UpdateRoomOutput } from '../dtos/room/updateRoom.dto';
-import { PlaylistItemService } from '../services/playlistItem.service';
+import { Room } from '../entities/room.entity';
+import { UPDATE_ROOM } from '../room.constant';
 import { RoomService } from '../services/room.service';
 
 @UseGuards(AppAuthGuard)
 @Resolver()
 export class RoomResolver {
-  constructor(private readonly roomService: RoomService) {}
+  constructor(
+    private readonly roomService: RoomService,
+    @Inject(PUB_SUB) private readonly pubsub: PubSub,
+  ) {}
   @AllowedPermission('LogIn')
   @Mutation((returns) => CreateRoomOutput)
   createRoom(
@@ -90,18 +76,25 @@ export class RoomResolver {
 
   @AllowedPermission('LogIn')
   @Query((returns) => CreateInviteCodeOutput)
-  createInviteCodeOutput(
+  createInviteCode(
     @AuthUser() user: User,
     @Args('input') input: CreateInviteCodeInput,
   ): Promise<CreateInviteCodeOutput> {
     return this.roomService.createInviteCodeOutput(user, input);
   }
 
+  @AllowedPermission('LogIn')
   @Mutation((returns) => CreateMsgOutput)
   createMsg(
     @AuthUser() user: User,
     @Args('input') input: CreateMsgInput,
   ): Promise<CreateMsgOutput> {
     return this.roomService.createMsg(user, input);
+  }
+
+  @AllowedPermission('Allowed')
+  @Subscription((returns) => Room)
+  updateRoomRealTime() {
+    return this.pubsub.asyncIterator(UPDATE_ROOM);
   }
 }

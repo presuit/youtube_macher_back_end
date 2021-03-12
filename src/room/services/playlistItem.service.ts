@@ -13,7 +13,7 @@ import {
   GetPlaylistItemByIdOutput,
 } from '../dtos/playlistItem/getPlaylistItemById.dto';
 import { PlaylistItem } from '../entities/playlistItem.entity';
-import { GET_YOUTUBE_VIDEO_URL } from '../playlist.constant';
+import { GET_YOUTUBE_VIDEO_URL } from '../room.constant';
 
 @Injectable()
 export class PlaylistItemService {
@@ -139,24 +139,32 @@ export class PlaylistItemService {
         },
       );
 
-      const videoSnippet = response.data.items[0].snippet;
-      const title = videoSnippet.title;
-      const description = videoSnippet.description;
-      const thumbnailImg = videoSnippet.thumbnails.default.url;
+      if (response.status === 200 && response.data.items.length !== 0) {
+        const videoSnippet = response.data.items[0].snippet;
+        const title = videoSnippet.title;
+        const description = videoSnippet.description;
+        const thumbnailImg = videoSnippet.thumbnails.default.url;
 
-      playlistItem = this.playlistItems.create({
-        description,
-        originalLink: link,
-        thumbnailImg,
-        title,
-        videoId,
-        kind: response.data.kind,
-      });
+        playlistItem = this.playlistItems.create({
+          description,
+          originalLink: link,
+          thumbnailImg,
+          title,
+          videoId,
+          kind: response.data.kind,
+        });
 
-      await this.playlistItems.save(playlistItem);
+        await this.playlistItems.save(playlistItem);
+      } else {
+        return {
+          ok: false,
+          error: 'Failed to create playlist with youtube api',
+        };
+      }
 
       return { ok: true, playlistItem };
     } catch (error) {
+      console.log(error);
       return { ok: false, error };
     }
   }

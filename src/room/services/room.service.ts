@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import axios from 'axios';
 import { CommonOutput } from 'src/common/dtos/commonOutput.dto';
@@ -46,17 +46,20 @@ import {
   GET_YOUTUBE_VIDEO_URL,
   PLAY_LIST_ITEM_URL,
   PLAY_LIST_URL,
-} from '../playlist.constant';
+  UPDATE_ROOM,
+} from '../room.constant';
 import { v4 as uuidv4 } from 'uuid';
 import { PlaylistItemService } from './playlistItem.service';
+import { PUB_SUB } from 'src/common/common.constants';
+import { PubSub } from 'graphql-subscriptions';
 
 @Injectable()
 export class RoomService {
   constructor(
     @InjectRepository(Room) private readonly rooms: Repository<Room>,
     @InjectRepository(Msg) private readonly msgs: Repository<Msg>,
-    private readonly userService: UserService,
     private readonly playlistItemService: PlaylistItemService,
+    @Inject(PUB_SUB) private readonly pubsub: PubSub,
   ) {}
 
   async createRoom(
@@ -115,9 +118,19 @@ export class RoomService {
     { roomId, banUserIds, name, unbanUserIds }: UpdateRoomInput,
   ): Promise<UpdateRoomOutput> {
     try {
-      let room = await this.rooms.findOneOrFail(roomId, {
-        relations: ['participants', 'bannedUsers'],
+      const { ok, error, room } = await this.findRoomById({
+        id: roomId,
+        relations: [
+          RoomRelations.bannedUsers,
+          RoomRelations.participants,
+          RoomRelations.msgs,
+          RoomRelations.playlistItems,
+        ],
       });
+
+      if (!ok) {
+        return { ok, error };
+      }
 
       if (user.id !== room.hostId) {
         return {
@@ -160,6 +173,11 @@ export class RoomService {
       }
 
       await this.rooms.save(room);
+
+      await this.pubsub.publish(UPDATE_ROOM, {
+        updateRoomRealTime: { ...room },
+      });
+
       return { ok: true };
     } catch (error) {
       return { ok: false, error };
@@ -207,11 +225,18 @@ export class RoomService {
     { roomId }: JoinRoomInput,
   ): Promise<JoinRoomOutput> {
     try {
-      const room = await this.rooms.findOne(roomId, {
-        relations: ['participants', 'bannedUsers'],
+      const { ok, error, room } = await this.findRoomById({
+        id: roomId,
+        relations: [
+          RoomRelations.participants,
+          RoomRelations.bannedUsers,
+          RoomRelations.msgs,
+          RoomRelations.playlistItems,
+        ],
       });
-      if (!room) {
-        return { ok: false, error: 'Room does not exist' };
+
+      if (!ok) {
+        return { ok, error };
       }
 
       if (room.participants && room.participants.length !== 0) {
@@ -229,15 +254,15 @@ export class RoomService {
         }
       }
 
-      await this.rooms.save([
-        {
-          id: room.id,
-          participants: [...room.participants, user],
-        },
-      ]);
+      room.participants.push(user);
+
+      await this.rooms.save(room);
 
       // tooo:
       // should use pubsub to notice new user join the room, and refresh room's participants real time
+      await this.pubsub.publish(UPDATE_ROOM, {
+        updateRoomRealTime: { ...room },
+      });
 
       return { ok: true };
     } catch (error) {
@@ -250,34 +275,54 @@ export class RoomService {
     { roomId, text }: CreateMsgInput,
   ): Promise<CreateMsgOutput> {
     try {
-      const room = await this.rooms.findOne(roomId, {
-        relations: ['playlistItems'],
+      const { ok, error, room } = await this.findRoomById({
+        id: roomId,
+        relations: [RoomRelations.playlistItems, RoomRelations.msgs],
       });
-      if (!room) {
-        return { ok: false, error: 'Room does not exists' };
+
+      if (!ok) {
+        return { ok, error };
       }
 
-      // tooo:
-      // parse text to validate if there's any links,
-      // if there's links, then parse it and getOrCreate PlaylistItem and attach to room
-      const {
-        ok,
-        playlistItem,
-      } = await this.playlistItemService.createOrGetPlaylistItem(user, {
-        link: text,
-      });
+      const parsedLinks = text.split(' ');
+      const validYoutubeLink = parsedLinks.find(
+        (each) =>
+          each.includes('https://www.youtube.com/watch') ||
+          each.includes('https://youtu.be'),
+      );
 
-      if (ok && playlistItem) {
-        room.playlistItems = [...room.playlistItems, playlistItem];
-        await this.rooms.save(room);
+      console.log(validYoutubeLink);
+
+      if (validYoutubeLink) {
+        const {
+          ok,
+          playlistItem,
+          error,
+        } = await this.playlistItemService.createOrGetPlaylistItem(user, {
+          link: validYoutubeLink,
+        });
+
+        if (ok && playlistItem) {
+          const existOnRoom = room.playlistItems.find(
+            (each) => each.id === playlistItem.id,
+          );
+          if (!existOnRoom) {
+            room.playlistItems = [...room.playlistItems, playlistItem];
+            await this.rooms.save(room);
+          }
+        }
       }
 
       const newMsg = this.msgs.create({ fromId: user.id, room, text });
+      await this.msgs.save(newMsg);
 
       // tooo:
       //  using pubsub, make room chat real time stuff
+      room.msgs.push(newMsg);
+      await this.pubsub.publish(UPDATE_ROOM, {
+        updateRoomRealTime: { ...room },
+      });
 
-      await this.msgs.save(newMsg);
       return { ok: true, msgId: newMsg.id };
     } catch (error) {
       return { ok: false, error };

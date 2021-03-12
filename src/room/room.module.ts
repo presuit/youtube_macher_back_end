@@ -11,12 +11,14 @@ import { PlaylistService } from './services/playlist.service';
 import { PlaylistItemService } from './services/playlistItem.service';
 import { PlaylistResolver } from './resolvers/playlist.resolver';
 import { PlaylistItemResolver } from './resolvers/playlistItem.resolver';
+import { CommonModule } from 'src/common/common.module';
 
 @Global()
 @Module({
   imports: [
     TypeOrmModule.forFeature([Room, Msg, Playlist, PlaylistItem]),
     UserModule,
+    CommonModule,
   ],
   providers: [
     RoomService,

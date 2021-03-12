@@ -5,6 +5,7 @@ import { JwtService } from 'src/jwt/jwt.service';
 import { Repository } from 'typeorm';
 import { FindUserByIdInput, FindUserByIdOutput } from './dtos/findUserById.dto';
 import { LogInOrCreateUserOutput } from './dtos/logInOrCreateUser.dto';
+import { MeInput, MeOutput } from './dtos/me.dto';
 import { User } from './entities/user.entity';
 
 @Injectable()
@@ -49,6 +50,18 @@ export class UserService {
         ok: true,
         user,
       };
+    } catch (error) {
+      return { ok: false, error };
+    }
+  }
+
+  async me(user: User, { relations }: MeInput): Promise<MeOutput> {
+    try {
+      const me = await this.users.findOne(user.id, {
+        ...(relations && { relations: [...relations] }),
+      });
+
+      return { ok: true, me };
     } catch (error) {
       return { ok: false, error };
     }

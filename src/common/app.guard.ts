@@ -23,8 +23,9 @@ export class AppAuthGuard implements CanActivate {
     }
 
     const ctx = GqlExecutionContext.create(context).getContext();
-    if (ctx?.req?.headers['x-jwt']) {
-      const decoded = this.jwtService.verifyJwtToken(ctx.req.headers['x-jwt']);
+    const token = ctx.token;
+    if (token) {
+      const decoded = this.jwtService.verifyJwtToken(token);
       if (decoded && typeof decoded === 'object') {
         const { ok, error, user } = await this.userService.findUserById({
           id: decoded['id'],

@@ -19,7 +19,7 @@ import {
 import { Playlist, PlaylistRelations } from '../entities/playlist.entity';
 import { PlaylistItem } from '../entities/playlistItem.entity';
 import { RoomRelations } from '../entities/room.entity';
-import { PLAY_LIST_ITEM_URL, PLAY_LIST_URL } from '../playlist.constant';
+import { PLAY_LIST_ITEM_URL, PLAY_LIST_URL } from '../room.constant';
 import { PlaylistItemService } from './playlistItem.service';
 import { RoomService } from './room.service';
 

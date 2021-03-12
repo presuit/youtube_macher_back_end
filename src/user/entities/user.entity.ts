@@ -12,6 +12,7 @@ import { Column, Entity, ManyToMany, OneToMany, RelationId } from 'typeorm';
 
 export enum UserRelations {
   rooms = 'rooms',
+  playlists = 'playlists',
 }
 
 registerEnumType(UserRelations, { name: 'UserRelations' });
@@ -53,4 +54,7 @@ export class User extends Common {
   })
   @Field((type) => [Playlist], { nullable: true })
   playlists?: Playlist[];
+
+  @RelationId((user: User) => user.playlists)
+  playlistIds: number[];
 }

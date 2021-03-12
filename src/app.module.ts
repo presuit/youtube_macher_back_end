@@ -15,7 +15,20 @@ import { UserModule } from './user/user.module';
   imports: [
     GraphQLModule.forRoot({
       autoSchemaFile: true,
-      context: (context) => {},
+      installSubscriptionHandlers: true,
+      context: (context) => {
+        if (context.req) {
+          return {
+            token: context.req.headers['x-jwt'],
+            req: context.req,
+          };
+        } else if (context.connection) {
+          return {
+            token: context.connection.context['x-jwt'],
+            req: context.req,
+          };
+        }
+      },
     }),
     TypeOrmModule.forRoot({
       type: 'postgres',
