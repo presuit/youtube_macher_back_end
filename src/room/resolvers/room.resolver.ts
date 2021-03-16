@@ -93,7 +93,13 @@ export class RoomResolver {
   }
 
   @AllowedPermission('Allowed')
-  @Subscription((returns) => Room)
+  @Subscription((returns) => Room, {
+    async filter(this: RoomResolver, payload, _, context) {
+      const { ok } = await this.roomService.filterRoom(payload, context);
+      console.log(ok);
+      return ok;
+    },
+  })
   updateRoomRealTime() {
     return this.pubsub.asyncIterator(UPDATE_ROOM);
   }

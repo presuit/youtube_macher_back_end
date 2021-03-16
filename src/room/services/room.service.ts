@@ -52,14 +52,17 @@ import { v4 as uuidv4 } from 'uuid';
 import { PlaylistItemService } from './playlistItem.service';
 import { PUB_SUB } from 'src/common/common.constants';
 import { PubSub } from 'graphql-subscriptions';
+import { JwtService } from 'src/jwt/jwt.service';
+import { IJwtTokenPayload } from '../../jwt/jwt.types';
 
 @Injectable()
 export class RoomService {
   constructor(
     @InjectRepository(Room) private readonly rooms: Repository<Room>,
     @InjectRepository(Msg) private readonly msgs: Repository<Msg>,
-    private readonly playlistItemService: PlaylistItemService,
     @Inject(PUB_SUB) private readonly pubsub: PubSub,
+    private readonly playlistItemService: PlaylistItemService,
+    private readonly jwtService: JwtService,
   ) {}
 
   async createRoom(
@@ -277,7 +280,11 @@ export class RoomService {
     try {
       const { ok, error, room } = await this.findRoomById({
         id: roomId,
-        relations: [RoomRelations.playlistItems, RoomRelations.msgs],
+        relations: [
+          RoomRelations.playlistItems,
+          RoomRelations.msgs,
+          RoomRelations.participants,
+        ],
       });
 
       if (!ok) {
@@ -297,7 +304,6 @@ export class RoomService {
         const {
           ok,
           playlistItem,
-          error,
         } = await this.playlistItemService.createOrGetPlaylistItem(user, {
           link: validYoutubeLink,
         });
@@ -326,6 +332,32 @@ export class RoomService {
       return { ok: true, msgId: newMsg.id };
     } catch (error) {
       return { ok: false, error };
+    }
+  }
+
+  async filterRoom(payload, context): Promise<{ ok: boolean }> {
+    try {
+      if (context.token) {
+        const user = this.jwtService.verifyJwtToken(context.token);
+
+        if (typeof user === 'object' && user['id']) {
+          const id = user['id'];
+          const participants = payload.updateRoomRealTime.participants;
+
+          if (!participants || participants.length === 0) {
+            return { ok: false };
+          }
+
+          const existOnRoom = participants.find((each) => each.id === id);
+          if (existOnRoom) {
+            return { ok: true };
+          }
+        }
+      }
+
+      return { ok: false };
+    } catch (error) {
+      return { ok: false };
     }
   }
 }
